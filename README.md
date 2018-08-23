@@ -2,6 +2,18 @@
 
 Prometheus service discovery using with HTTP API and `file_sd_config`.
 
+## Install
+
+### Precompiled binaries
+
+Download from https://github.com/rrreeeyyy/prometheus-http-sd
+
+### Docker
+
+```
+docker pull rrreeeyyy/prometheus-http-sd
+```
+
 ## Usage
 
 ```

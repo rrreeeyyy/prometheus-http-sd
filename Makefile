@@ -1,4 +1,4 @@
-VERSION = "0.1.0"
+VERSION = 0.1.0
 COMMIT = $(shell git describe --always)
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
@@ -26,7 +26,7 @@ fmt:
 release: buildx
 	git tag v$(VERSION)
 	git push origin v$(VERSION)
-	ghr v$(VERSION) bin/v$(VERSION)/
+	ghr -u rrreeeyyy v$(VERSION) bin/v$(VERSION)/
 
 dep:
 	dep ensure

@@ -27,7 +27,3 @@ release: buildx
 	git tag v$(VERSION)
 	git push origin v$(VERSION)
 	ghr -u rrreeeyyy v$(VERSION) bin/v$(VERSION)/
-
-dep:
-	dep ensure
-	dep status

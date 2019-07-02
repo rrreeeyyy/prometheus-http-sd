@@ -19,18 +19,20 @@ import (
 
 var (
 	a               = kingpin.New("sd adapter usage", "Tool to generate file_sd target files for unimplemented SD mechanisms.")
-	outputFile      = a.Flag("output.file", "Output file for file_sd compatible file.").Default("custom_sd.json").String()
-	apiUrl          = a.Flag("api.url", "The url the HTTP API sd is listening on for requests.").Default("http://localhost:8080").String()
+	outputFile      = a.Flag("output.file", "Output file for file_sd compatible file.").Default("custom_sd.json").Strings()
+	apiUrl          = a.Flag("api.url", "The url the HTTP API sd is listening on for requests.").Default("http://localhost:8080").Strings()
 	refreshInterval = a.Flag("refresh.interval", "Refresh interval to re-read the instance list.").Default("60").Int()
 	logger          log.Logger
 )
 
 type sdConfig struct {
-	ApiUrl          string
+	OutputFiles     []string
+	ApiUrls         []string
 	RefreshInterval int
 }
 
 type discovery struct {
+	outputFile      string
 	apiUrl          string
 	refreshInterval int
 	logger          log.Logger
@@ -92,13 +94,17 @@ func (d *discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 	}
 }
 
-func newDiscovery(conf sdConfig) (*discovery, error) {
-	cd := &discovery{
-		apiUrl:          conf.ApiUrl,
-		refreshInterval: conf.RefreshInterval,
-		logger:          logger,
+func newDiscovery(conf sdConfig) ([]*discovery, error) {
+	var cds []*discovery
+	for i := range conf.ApiUrls {
+		cds = append(cds, &discovery{
+			outputFile:      conf.OutputFiles[i],
+			apiUrl:          conf.ApiUrls[i],
+			refreshInterval: conf.RefreshInterval,
+			logger:          logger,
+		})
 	}
-	return cd, nil
+	return cds, nil
 }
 
 func main() {
@@ -109,13 +115,18 @@ func main() {
 		fmt.Println("err: ", err)
 		return
 	}
+	if len(*apiUrl) != len(*outputFile) {
+		fmt.Println("err: The number of options differs between --api.url and --output.file")
+		return
+	}
 	logger = log.NewSyncLogger(log.NewLogfmtLogger(os.Stdout))
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 
 	ctx := context.Background()
 
 	cfg := sdConfig{
-		ApiUrl:          *apiUrl,
+		OutputFiles:     *outputFile,
+		ApiUrls:         *apiUrl,
 		RefreshInterval: *refreshInterval,
 	}
 
@@ -123,8 +134,11 @@ func main() {
 	if err != nil {
 		fmt.Println("err: ", err)
 	}
-	sdAdapter := adapter.NewAdapter(ctx, *outputFile, "httpSD", disc, logger)
-	sdAdapter.Run()
+
+	for _, cd := range disc {
+		sdAdapter := adapter.NewAdapter(ctx, cd.outputFile, "httpSD", cd, logger)
+		sdAdapter.Run()
+	}
 
 	<-ctx.Done()
 }

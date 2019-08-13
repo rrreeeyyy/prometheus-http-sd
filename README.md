@@ -16,9 +16,17 @@ docker pull rrreeeyyy/prometheus-http-sd
 
 ## Usage
 
-```
-./prometheus-http-sd --api.url="http://api.example.com/service_discovery.json" --output.file=/path/to/http_sd.json --refresh.interval=60
-```
+- Run a single API endpoint
+
+    ```
+    ./prometheus-http-sd --api.url="http://api.example.com/service_discovery.json" --output.file=/path/to/http_sd.json --refresh.interval=60
+    ```
+
+- Run multiple API endpoints
+
+    ```
+    ./prometheus-http-sd --api.url="http://api.example.com/foo_service_discovery.json" --output.file=/path/to/http_foo_sd.json --api.url="http://api.example.com/bar_service_discovery.json" --output.file=/path/to/http_bar_sd.json --refresh.interval=60
+    ```
 
 ## HTTP API format
 

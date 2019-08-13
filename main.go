@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -24,6 +25,8 @@ var (
 	refreshInterval = a.Flag("refresh.interval", "Refresh interval to re-read the instance list.").Default("60").Int()
 	logger          log.Logger
 )
+
+var discoverCancel []context.CancelFunc
 
 type sdConfig struct {
 	ApiUrl          string
@@ -89,6 +92,8 @@ func (d *discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 		case <-c:
 			continue
 		case <-ctx.Done():
+			level.Error(d.logger).Log("msg", "Error occurred during HTTP SD %s. Terminating all discoverers.", d.apiUrl)
+			cancelDiscoverers()
 			return
 		}
 	}
@@ -102,6 +107,14 @@ func newDiscovery(conf sdConfig) (*discovery, error) {
 		logger:          logger,
 	}
 	return cd, nil
+}
+
+func cancelDiscoverers() {
+	for _, c := range discoverCancel {
+		c()
+	}
+	discoverCancel = nil
+	return
 }
 
 func main() {
@@ -120,7 +133,9 @@ func main() {
 	logger = log.NewSyncLogger(log.NewLogfmtLogger(os.Stdout))
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	discoverCancel = append(discoverCancel, cancel)
+	defer cancel()
 
 	var cfgs []sdConfig
 	for i := range *apiUrl {
@@ -140,10 +155,21 @@ func main() {
 		discs = append(discs, disc)
 	}
 
+	var wg sync.WaitGroup
+
 	for _, disc := range discs {
-		sdAdapter := adapter.NewAdapter(ctx, disc.outputFile, "httpSD", disc, logger)
-		sdAdapter.Run()
+		wg.Add(1)
+		func(d *discovery) {
+			defer wg.Done()
+
+			ctxSd, cancelSd := context.WithCancel(ctx)
+			discoverCancel = append(discoverCancel, cancelSd)
+
+			sdAdapter := adapter.NewAdapter(ctxSd, d.outputFile, "httpSD", d, logger)
+			sdAdapter.Run()
+		}(disc)
 	}
+	wg.Wait()
 
 	<-ctx.Done()
 }

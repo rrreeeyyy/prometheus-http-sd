@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -19,19 +20,23 @@ import (
 
 var (
 	a               = kingpin.New("sd adapter usage", "Tool to generate file_sd target files for unimplemented SD mechanisms.")
-	outputFile      = a.Flag("output.file", "Output file for file_sd compatible file.").Default("custom_sd.json").String()
-	apiUrl          = a.Flag("api.url", "The url the HTTP API sd is listening on for requests.").Default("http://localhost:8080").String()
+	apiUrl          = a.Flag("api.url", "The url the HTTP API sd is listening on for requests.").Default("http://localhost:8080").Strings()
+	outputFile      = a.Flag("output.file", "Output file for file_sd compatible file.").Default("custom_sd.json").Strings()
 	refreshInterval = a.Flag("refresh.interval", "Refresh interval to re-read the instance list.").Default("60").Int()
 	logger          log.Logger
 )
 
+var discoverCancel []context.CancelFunc
+
 type sdConfig struct {
 	ApiUrl          string
+	OutputFile      string
 	RefreshInterval int
 }
 
 type discovery struct {
 	apiUrl          string
+	outputFile      string
 	refreshInterval int
 	logger          log.Logger
 }
@@ -87,6 +92,8 @@ func (d *discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 		case <-c:
 			continue
 		case <-ctx.Done():
+			level.Error(d.logger).Log("msg", "Error occurred during HTTP SD %s. Terminating all discoverers.", d.apiUrl)
+			cancelDiscoverers()
 			return
 		}
 	}
@@ -95,10 +102,19 @@ func (d *discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 func newDiscovery(conf sdConfig) (*discovery, error) {
 	cd := &discovery{
 		apiUrl:          conf.ApiUrl,
+		outputFile:      conf.OutputFile,
 		refreshInterval: conf.RefreshInterval,
 		logger:          logger,
 	}
 	return cd, nil
+}
+
+func cancelDiscoverers() {
+	for _, c := range discoverCancel {
+		c()
+	}
+	discoverCancel = nil
+	return
 }
 
 func main() {
@@ -109,22 +125,51 @@ func main() {
 		fmt.Println("err: ", err)
 		return
 	}
+
+	if len(*apiUrl) != len(*outputFile) {
+		fmt.Println("err: The number of options differs between --api.url and --output.file")
+		return
+	}
 	logger = log.NewSyncLogger(log.NewLogfmtLogger(os.Stdout))
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	discoverCancel = append(discoverCancel, cancel)
+	defer cancel()
 
-	cfg := sdConfig{
-		ApiUrl:          *apiUrl,
-		RefreshInterval: *refreshInterval,
+	var cfgs []sdConfig
+	for i := range *apiUrl {
+		cfgs = append(cfgs, sdConfig{
+			ApiUrl:          (*apiUrl)[i],
+			OutputFile:      (*outputFile)[i],
+			RefreshInterval: *refreshInterval,
+		})
 	}
 
-	disc, err := newDiscovery(cfg)
-	if err != nil {
-		fmt.Println("err: ", err)
+	var discs []*discovery
+	for _, cfg := range cfgs {
+		disc, err := newDiscovery(cfg)
+		if err != nil {
+			fmt.Println("err: ", err)
+		}
+		discs = append(discs, disc)
 	}
-	sdAdapter := adapter.NewAdapter(ctx, *outputFile, "httpSD", disc, logger)
-	sdAdapter.Run()
+
+	var wg sync.WaitGroup
+
+	for _, disc := range discs {
+		wg.Add(1)
+		func(d *discovery) {
+			defer wg.Done()
+
+			ctxSd, cancelSd := context.WithCancel(ctx)
+			discoverCancel = append(discoverCancel, cancelSd)
+
+			sdAdapter := adapter.NewAdapter(ctxSd, d.outputFile, "httpSD", d, logger)
+			sdAdapter.Run()
+		}(disc)
+	}
+	wg.Wait()
 
 	<-ctx.Done()
 }

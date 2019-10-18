@@ -124,7 +124,7 @@ func (d *discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 		case <-c:
 			continue
 		case <-ctx.Done():
-			level.Error(d.logger).Log("msg", "Error occurred during HTTP SD %s. Terminating all discoverers.", d.apiURL)
+			level.Error(d.logger).Log("msg", "Error occurred during HTTP SD. Terminating all discoverers.", "api_url", d.apiURL)
 			cancelDiscoverers()
 			return
 		}

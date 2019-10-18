@@ -20,7 +20,7 @@ import (
 
 var (
 	a               = kingpin.New("sd adapter usage", "Tool to generate file_sd target files for unimplemented SD mechanisms.")
-	apiUrl          = a.Flag("api.url", "The url the HTTP API sd is listening on for requests.").Default("http://localhost:8080").Strings()
+	apiURL          = a.Flag("api.url", "The url the HTTP API sd is listening on for requests.").Default("http://localhost:8080").Strings()
 	outputFile      = a.Flag("output.file", "Output file for file_sd compatible file.").Default("custom_sd.json").Strings()
 	refreshInterval = a.Flag("refresh.interval", "Refresh interval to re-read the instance list.").Default("60").Int()
 	logger          log.Logger
@@ -29,13 +29,13 @@ var (
 var discoverCancel []context.CancelFunc
 
 type sdConfig struct {
-	ApiUrl          string
+	ApiURL          string
 	OutputFile      string
 	RefreshInterval int
 }
 
 type discovery struct {
-	apiUrl          string
+	apiURL          string
 	outputFile      string
 	refreshInterval int
 	logger          log.Logger
@@ -43,7 +43,7 @@ type discovery struct {
 
 func (d *discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 	for c := time.Tick(time.Duration(d.refreshInterval) * time.Second); ; {
-		resp, err := http.Get(fmt.Sprintf("%s", d.apiUrl))
+		resp, err := http.Get(fmt.Sprintf("%s", d.apiURL))
 
 		if err != nil {
 			level.Error(d.logger).Log("msg", "Error getting targets", "err", err)
@@ -92,7 +92,7 @@ func (d *discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 		case <-c:
 			continue
 		case <-ctx.Done():
-			level.Error(d.logger).Log("msg", "Error occurred during HTTP SD %s. Terminating all discoverers.", d.apiUrl)
+			level.Error(d.logger).Log("msg", "Error occurred during HTTP SD %s. Terminating all discoverers.", d.apiURL)
 			cancelDiscoverers()
 			return
 		}
@@ -101,7 +101,7 @@ func (d *discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 
 func newDiscovery(conf sdConfig) (*discovery, error) {
 	cd := &discovery{
-		apiUrl:          conf.ApiUrl,
+		apiURL:          conf.ApiURL,
 		outputFile:      conf.OutputFile,
 		refreshInterval: conf.RefreshInterval,
 		logger:          logger,
@@ -126,7 +126,7 @@ func main() {
 		return
 	}
 
-	if len(*apiUrl) != len(*outputFile) {
+	if len(*apiURL) != len(*outputFile) {
 		fmt.Println("err: The number of options differs between --api.url and --output.file")
 		return
 	}
@@ -138,9 +138,9 @@ func main() {
 	defer cancel()
 
 	var cfgs []sdConfig
-	for i := range *apiUrl {
+	for i := range *apiURL {
 		cfgs = append(cfgs, sdConfig{
-			ApiUrl:          (*apiUrl)[i],
+			ApiURL:          (*apiURL)[i],
 			OutputFile:      (*outputFile)[i],
 			RefreshInterval: *refreshInterval,
 		})

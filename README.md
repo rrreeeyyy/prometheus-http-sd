@@ -67,3 +67,10 @@ The part of your `prometheus.yml` is probably as follows.
         - files:
           - /path/to/http_sd.json
 ```
+
+## Metrics
+
+- `prometheus_sd_http_http_requests_total`
+	- labels
+		- `api_url`: target API URL
+		- `code`: http response code

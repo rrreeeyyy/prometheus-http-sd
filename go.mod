@@ -36,6 +36,7 @@ require (
 	github.com/mitchellh/go-homedir v0.0.0-20180523094522-3864e76763d9 // indirect
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223 // indirect
+	github.com/prometheus/client_golang v0.9.2
 	github.com/prometheus/common v0.0.0-20181126121408-4724e9255275
 	github.com/prometheus/prometheus v2.3.0+incompatible
 	github.com/prometheus/tsdb v0.7.1 // indirect

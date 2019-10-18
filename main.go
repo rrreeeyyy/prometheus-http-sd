@@ -21,6 +21,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+var Version string
+
 const (
 	metricsNamespace = "prometheus_sd_http"
 )
@@ -150,6 +152,7 @@ func cancelDiscoverers() {
 }
 
 func main() {
+	a.Version(Version)
 	a.HelpFlag.Short('h')
 
 	_, err := a.Parse(os.Args[1:])

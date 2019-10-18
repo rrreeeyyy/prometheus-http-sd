@@ -1,4 +1,4 @@
-VERSION = 0.1.0
+VERSION = 0.2.0
 COMMIT = $(shell git describe --always)
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
@@ -6,10 +6,10 @@ default: build
 
 # build generate binary on './bin' directory.
 build:
-	go build -ldflags "-X main.GitCommit=$(COMMIT)" -o bin/prometheus-http-sd .
+	go build -ldflags "-X main.Version=$(VERSION)" -o bin/prometheus-http-sd .
 
 buildx:
-	gox -ldflags "-X main.GitCommit=$(COMMIT)" -output "bin/v$(VERSION)/{{.Dir}}_{{.OS}}_{{.Arch}}" -arch "amd64" -os "linux darwin" .
+	gox -ldflags "-X main.Version=$(VERSION)" -output "bin/v$(VERSION)/{{.Dir}}_{{.OS}}_{{.Arch}}" -arch "amd64" -os "linux darwin" .
 
 lint:
 	golint ${GOFILES_NOVENDOR}

@@ -1,3 +1,8 @@
+Since prometheus version 2.28, Prometheus provides a generic HTTP Service discovery.
+We recommend to use prometheus native http_sd feature.
+
+https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config
+
 # prometheus-http-sd
 
 Prometheus service discovery using with HTTP API and `file_sd_config`.
